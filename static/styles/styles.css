@@ -1,0 +1,133 @@
+body { 
+  margin:0; 
+  padding:0; 
+  font-family: Arial, sans-serif; 
+}
+
+#map { 
+  width:100vw; 
+  height:100vh; 
+}
+
+.control-panel {
+  position: absolute; 
+  top: 12px; 
+  left: 12px; 
+  z-index: 1000;
+  background: rgba(255,255,255,0.94); 
+  padding: 14px 16px;
+  border-radius: 8px; 
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  font-size: 14px; 
+  backdrop-filter: blur(6px);
+}
+
+select, button { 
+  padding: 7px 11px; 
+  margin: 4px; 
+  border-radius: 5px; 
+  border: none;
+  background: #333; 
+  color: #fff; 
+  cursor: pointer; 
+}
+
+button:hover { 
+  background: #555; 
+}
+
+.checkbox-label { 
+  display: block; 
+  margin-top: 10px; 
+  font-size: 13px; 
+}
+
+.checkbox-label input { 
+  margin-right: 8px; 
+  transform: scale(1.2); 
+  cursor: pointer; 
+}
+
+.legend {
+  position: absolute; 
+  bottom: 20px; 
+  left: 12px; 
+  z-index: 1000;
+  background: rgba(255,255,255,0.96); 
+  padding: 14px 16px;
+  border-radius: 8px; 
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  font-size: 13px; 
+  backdrop-filter: blur(8px);
+  width: 380px;
+}
+
+.legend-title {
+  font-weight: bold; 
+  text-align: center; 
+  margin-bottom: 8px; 
+  font-size: 13.5px;
+}
+
+.color-bar {
+  width: 100%; 
+  height: 22px; 
+  border-radius: 5px; 
+  margin: 10px 0;
+  background: linear-gradient(to right,
+    #1c54ff, #6cc343, #ffc309, #ff7209, #e83b0c, #e80cae, #bd00ff
+  );
+  border: 1px solid #aaa; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.color-bar-labels {
+  display: flex; 
+  justify-content: space-between;
+  font-size: 12px; 
+  font-weight: bold; 
+  color: #333;
+}
+
+#selectedInfo {
+  position: absolute; 
+  bottom: 140px; 
+  left: 12px; 
+  z-index: 1000;
+  background: rgba(30,30,50,0.95); 
+  color: white;
+  padding: 10px 14px; 
+  border-radius: 8px;
+  font-size: 13.5px; 
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+  opacity: 0; 
+  pointer-events: none; 
+  transition: opacity 0.3s ease;
+  max-width: 360px;
+}
+
+#selectedInfo.visible { 
+  opacity: 1; 
+}
+
+/* COLORED TOOLTIP STYLING */
+.leaflet-tooltip.aew-vorticity-tooltip {
+  background: rgba(15, 20, 40, 0.96) !important;
+  color: white !important;
+  border: 3px solid transparent !important;
+  border-radius: 8px !important;
+  padding: 9px 13px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.leaflet-tooltip.aew-vorticity-tooltip::before {
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}

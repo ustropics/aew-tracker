@@ -2,291 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>AEW Tracks 1995 - 700hPa Curvature Vorticity</title>
+  <title>AEW Tracks (1995–2000) - 700hPa Curvature Vorticity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-
-  <style>
-    body { margin:0; padding:0; font-family: Arial, sans-serif; }
-    #map { width:100vw; height:100vh; }
-    .control-panel {
-      position: absolute; top: 12px; left: 12px; z-index: 1000;
-      background: rgba(255,255,255,0.94); padding: 14px 16px;
-      border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-      font-size: 14px; backdrop-filter: blur(6px);
-    }
-    select, button { padding: 7px 11px; margin: 4px; border-radius: 5px; border: none;
-      background: #333; color: #fff; cursor: pointer; }
-    button:hover { background: #555; }
-    .checkbox-label { display: block; margin-top: 10px; font-size: 13px; }
-    .checkbox-label input { margin-right: 8px; transform: scale(1.2); cursor: pointer; }
-
-    .legend {
-      position: absolute; bottom: 20px; left: 12px; z-index: 1000;
-      background: rgba(255,255,255,0.96); padding: 14px 16px;
-      border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      font-size: 13px; backdrop-filter: blur(8px);
-      width: 380px;
-    }
-    .legend-title {
-      font-weight: bold; text-align: center; margin-bottom: 8px; font-size: 13.5px;
-    }
-    .color-bar {
-      width: 100%; height: 22px; border-radius: 5px; margin: 10px 0;
-      background: linear-gradient(to right,
-        #1c54ff, #6cc343, #ffc309, #ff7209, #e83b0c, #e80cae, #bd00ff
-      );
-      border: 1px solid #aaa; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    .color-bar-labels {
-      display: flex; justify-content: space-between;
-      font-size: 12px; font-weight: bold; color: #333;
-    }
-
-    /* Static selected track info box */
-    #selectedInfo {
-      position: absolute; bottom: 140px; left: 12px; z-index: 1000;
-      background: rgba(30,30,50,0.95); color: white;
-      padding: 10px 14px; border-radius: 8px;
-      font-size: 13.5px; font-weight: bold;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.2);
-      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-      max-width: 360px;
-    }
-    #selectedInfo.visible { opacity: 1; }
-  </style>
+  <link rel="stylesheet" href="static/styles/styles.css" />
 </head>
 <body>
 
 <div id="map"></div>
 
 <div class="control-panel">
-  <strong>AEW Tracks 1995</strong><br>
+  <strong>AEW Tracks</strong><br>
+  
+  <label>Year:</label>
+  <select id="yearFilter">
+    <option value="1995" selected>1995</option>
+    <option value="1996">1996</option>
+    <option value="1997">1997</option>
+    <option value="1998">1998</option>
+    <option value="1999">1999</option>
+    <option value="2000">2000</option>
+  </select>
+
   <label>Month:</label>
   <select id="monthFilter">
     <option value="all">All Months</option>
     <option value="6">June</option>
     <option value="7">July</option>
-    <option value="8" selected>August</option>
+    <option value="8">August</option>
     <option value="9">September</option>
     <option value="10">October</option>
   </select>
-  <button onclick="applyFilters()">Apply</button>
-  <button onclick="clearFilters()">Clear</button>
 
   <label class="checkbox-label">
-    <input type="checkbox" id="showPointsOnly" onchange="applyFilters()">
+    <input type="checkbox" id="showPointsOnly">
     Show points only (hide lines)
   </label>
 
-  <div style="margin-top:8px;">Tracks: <strong id="trackCount">Loading data...</strong></div>
+  <div style="margin-top:8px; font-size:13px;">
+    Tracks: <strong id="trackCount">Loading 1995...</strong>
+  </div>
 </div>
 
-<!-- Static tooltip for selected track -->
 <div id="selectedInfo">
   <div id="selectedDate">—</div>
   <div id="selectedValue">—</div>
 </div>
 
 <div class="legend">
-  <div class="legend-title">
-    Measured by 700hPa Curvature Vorticity (×10⁻⁵ s⁻¹)
-  </div>
+  <div class="legend-title">700hPa Curvature Vorticity (×10⁻⁵ s⁻¹)</div>
   <div class="color-bar"></div>
   <div class="color-bar-labels">
-    <span>0</span>
-    <span>3.5</span>
-    <span>7</span>
+    <span>0</span><span>3.5</span><span>7+</span>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-<script>
-// Map + dark basemap
-const map = L.map('map').setView([12, -20], 4);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap contributors © CARTO',
-  subdomains: 'abcd', maxZoom: 20
-}).addTo(map);
-
-function getColor(strength_x1e5) {
-  if (strength_x1e5 <= 1.5) return '#1c54ff';
-  if (strength_x1e5 <= 3.0) return '#6cc343';
-  if (strength_x1e5 <= 4.2) return '#ffc309';
-  if (strength_x1e5 <= 5.0) return '#ff7209';
-  if (strength_x1e5 <= 5.8) return '#e83b0c';
-  if (strength_x1e5 <= 6.5) return '#e80cae';
-  return '#bd00ff';
-}
-
-const trackLayer = L.layerGroup().addTo(map);
-let allFeatures = [];
-let dataLoaded = false;
-let currentHighlighted = null;
-let currentSelectedPoint = null;
-
-const selectedInfo = document.getElementById('selectedInfo');
-const selectedDateEl = document.getElementById('selectedDate');
-const selectedValueEl = document.getElementById('selectedValue');
-
-fetch('aew_tracks_1995_interactive.json')
-  .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-  .then(data => {
-    allFeatures = data.features || [];
-    dataLoaded = true;
-    document.getElementById('trackCount').textContent = `${allFeatures.length} tracks loaded`;
-    applyFilters();
-  })
-  .catch(err => {
-    console.error('JSON load failed:', err);
-    document.getElementById('trackCount').textContent = 'Failed to load data';
-    dataLoaded = false;
-  });
-
-function trackPassesFilter(f, month) {
-  return month === 'all' || f.properties.months.includes(parseInt(month));
-}
-
-function updateMap() {
-  trackLayer.clearLayers();
-  currentHighlighted = null;
-  currentSelectedPoint = null;
-  selectedInfo.classList.remove('visible');
-
-  if (!dataLoaded || allFeatures.length === 0) {
-    document.getElementById('trackCount').textContent = 'No data';
-    return;
-  }
-
-  const month = document.getElementById('monthFilter').value;
-  const pointsOnly = document.getElementById('showPointsOnly').checked;
-  const visible = allFeatures.filter(f => trackPassesFilter(f, month));
-
-  if (visible.length === 0) {
-    document.getElementById('trackCount').textContent = '0 tracks (filtered)';
-    return;
-  }
-
-  visible.forEach(feature => {
-    const coords = feature.geometry.coordinates;
-    const points = feature.properties.point_data;
-    const layers = [];
-
-    if (pointsOnly) {
-      points.forEach((pt, i) => {
-        const s = pt.strength * 1e5;
-        const circle = L.circleMarker([coords[i][1], coords[i][0]], {
-          radius: 7,
-          color: 'transparent',
-          weight: 0,
-          fillColor: getColor(s),
-          fillOpacity: 0.98
-        });
-
-        circle.on('click', () => {
-          currentSelectedPoint = { date: pt.time.split(' ')[0], value: s.toFixed(2) };
-          selectedDateEl.textContent = `Date: ${currentSelectedPoint.date}`;
-          selectedValueEl.textContent = `Vorticity: ${currentSelectedPoint.value} ×10⁻⁵ s⁻¹`;
-          selectedInfo.classList.add('visible');
-        });
-
-        circle.bindTooltip(
-          `<strong>Date:</strong> ${pt.time.split(' ')[0]}<br><strong>Vorticity:</strong> ${s.toFixed(2)} ×10⁻⁵ s⁻¹`,
-          { sticky: true }
-        );
-        layers.push(circle);
-      });
-    } else {
-      for (let i = 0; i < coords.length - 1; i++) {
-        const s = points[i].strength * 1e5;
-        const line = L.polyline(
-          [[coords[i][1], coords[i][0]], [coords[i+1][1], coords[i+1][0]]],
-          { color: getColor(s), weight: 4, opacity: 0.92 }
-        );
-
-        line.on('click', () => {
-          currentSelectedPoint = { date: points[i].time.split(' ')[0], value: s.toFixed(2) };
-          selectedDateEl.textContent = `Date: ${currentSelectedPoint.date}`;
-          selectedValueEl.textContent = `Vorticity: ${currentSelectedPoint.value} ×10⁻⁵ s⁻¹`;
-          selectedInfo.classList.add('visible');
-        });
-
-        line.bindTooltip(
-          `<strong>Date:</strong> ${points[i].time.split(' ')[0]}<br><strong>Vorticity:</strong> ${s.toFixed(2)} ×10⁻⁵ s⁻¹`,
-          { sticky: true }
-        );
-        layers.push(line);
-      }
-    }
-
-    const group = L.featureGroup(layers).addTo(trackLayer);
-
-    group.on('click', (e) => {
-      L.DomEvent.stopPropagation(e); // Prevent map dblclick
-
-      if (currentHighlighted === group) return;
-
-      // Reset previous
-      if (currentHighlighted) {
-        currentHighlighted.eachLayer(l => l.setStyle?.({ opacity: 0.92, fillOpacity: 0.98, weight: pointsOnly ? 0 : 4 }));
-      }
-
-      // Dim all others to 25% opacity
-      trackLayer.eachLayer(g => {
-        if (g !== group) {
-          g.eachLayer(l => l.setStyle?.({ opacity: 0.25, fillOpacity: 0.25, weight: pointsOnly ? 0 : 1.5 }));
-        }
-      });
-
-      // Highlight selected track
-      group.eachLayer(l => l.setStyle?.({
-        weight: pointsOnly ? 0 : 10,
-        opacity: 1, fillOpacity: 1,
-        radius: pointsOnly ? 11 : undefined
-      }));
-
-      currentHighlighted = group;
-    });
-  });
-
-  document.getElementById('trackCount').textContent = `${visible.length} tracks shown`;
-  if (trackLayer.getLayers().length > 0) {
-    try { map.fitBounds(trackLayer.getBounds().pad(0.3)); }
-    catch(e) { console.warn("fitBounds skipped"); }
-  }
-}
-
-function applyFilters() { if (dataLoaded) updateMap(); }
-function clearFilters() {
-  document.getElementById('monthFilter').value = 'all';
-  document.getElementById('showPointsOnly').checked = false;
-  if (dataLoaded) updateMap();
-}
-
-// Double-click map = clear selection
-map.on('dblclick', () => {
-  if (currentHighlighted || currentSelectedPoint) {
-    const pointsOnly = document.getElementById('showPointsOnly').checked;
-    trackLayer.eachLayer(g => {
-      g.eachLayer(l => l.setStyle?.({
-        opacity: pointsOnly ? 0.98 : 0.92,
-        fillOpacity: 0.98,
-        weight: pointsOnly ? 0 : 4,
-        radius: pointsOnly ? 7 : undefined
-      }));
-    });
-    currentHighlighted = null;
-    currentSelectedPoint = null;
-    selectedInfo.classList.remove('visible');
-  }
-});
-</script>
+<script src="static/scripts/map.js"></script>
+<script src="static/scripts/ui.js"></script>
 
 </body>
 </html>
