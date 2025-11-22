@@ -2,46 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>AEW Tracks 1995 - Interactive Map</title>
+  <title>AEW Tracks 1995 - 700hPa Curvature Vorticity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   <style>
-    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-    #map { width: 100vw; height: 100vh; }
+    body { margin:0; padding:0; font-family: Arial, sans-serif; }
+    #map { width:100vw; height:100vh; }
     .control-panel {
-      position: absolute;
-      top: 10px;
-      left: 50px;
-      background: white;
-      padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      z-index: 1000;
-      font-size: 14px;
+      position: absolute; top: 12px; left: 12px; z-index: 1000;
+      background: rgba(255,255,255,0.94); padding: 14px 16px;
+      border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      font-size: 14px; backdrop-filter: blur(6px);
     }
-    .control-panel label { margin-right: 10px; }
-    select, button { padding: 6px 10px; margin-right: 8px; border-radius: 4px; border: 1px solid #ccc; }
+    select, button { padding: 7px 11px; margin: 4px; border-radius: 5px; border: none;
+      background: #333; color: #fff; cursor: pointer; }
+    button:hover { background: #555; }
+    .checkbox-label { display: block; margin-top: 10px; font-size: 13px; }
+    .checkbox-label input { margin-right: 8px; transform: scale(1.2); cursor: pointer; }
+
     .legend {
-      position: absolute;
-      bottom: 20px;
-      left: 50px;
-      background: white;
-      padding: 10px;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      z-index: 1000;
-      line-height: 20px;
+      position: absolute; bottom: 20px; left: 12px; z-index: 1000;
+      background: rgba(255,255,255,0.94); padding: 14px 16px;
+      border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      font-size: 13px; backdrop-filter: blur(6px);
+      width: 380px;               /* Increased to accommodate long title */
     }
-    .legend i {
-      width: 18px;
-      height: 18px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.8;
+    .legend-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+      font-size: 13.5px;
+    }
+    .color-bar {
+      width: 100%;                 /* Now full width of legend box */
+      height: 22px;
+      border-radius: 5px;
+      margin: 10px 0;
+      background: linear-gradient(to right,
+        #1c54ff, #6cc343, #ffc309, #ff7209, #e83b0c, #e80cae, #bd00ff
+      );
+      border: 1px solid #aaa;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .color-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
     }
   </style>
 </head>
@@ -50,150 +61,170 @@
 <div id="map"></div>
 
 <div class="control-panel">
-  <label>Filter by Month:</label>
+  <strong>AEW Tracks 1995</strong><br>
+  <label>Month:</label>
   <select id="monthFilter">
     <option value="all">All Months</option>
-    <option value="1">January</option>
-    <option value="2">February</option>
-    <option value="3">March</option>
-    <option value="4">April</option>
-    <option value="5">May</option>
     <option value="6">June</option>
     <option value="7">July</option>
-    <option value="8">August</option>
+    <option value="8" selected>August</option>
     <option value="9">September</option>
     <option value="10">October</option>
-    <option value="11">November</option>
-    <option value="12">December</option>
   </select>
-  <button onclick="applyFilters()">Apply Filter</button>
+  <button onclick="applyFilters()">Apply</button>
   <button onclick="clearFilters()">Clear</button>
-  <div style="margin-top:8px; font-size:12px; color:#666;">
-    Total tracks: <span id="trackCount">0</span>
+
+  <label class="checkbox-label">
+    <input type="checkbox" id="showPointsOnly" onchange="applyFilters()">
+    Show points only (hide lines)
+  </label>
+
+  <div style="margin-top:8px;">Tracks shown: <strong id="trackCount">0</strong></div>
+</div>
+
+<!-- Beautiful full-width legend -->
+<div class="legend">
+  <div class="legend-title">
+    Measured by 700hPa Curvature Vorticity (×10⁻⁵ s⁻¹)
+  </div>
+  <div class="color-bar"></div>
+  <div class="color-bar-labels">
+    <span>0</span>
+    <span>3.5</span>
+    <span>7</span>
   </div>
 </div>
 
-<div class="legend">
-  <strong>Strength (curvature vorticity)</strong><br>
-  <i style="background:#d7191c"></i> Very Strong (> 8×10⁻⁵)<br>
-  <i style="background:#fdae61"></i> Strong<br>
-  <i style="background:#ffffbf"></i> Moderate<br>
-  <i style="background:#abd9e9"></i> Weak<br>
-  <i style="background:#2c7bb6"></i> Very Weak (< 3×10⁻⁵)
-</div>
-
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <script>
-// Initialize map
-const map = L.map('map').setView([15, -20], 4);
-
-// OpenStreetMap tiles
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors',
-  maxZoom: 18
+// Map + dark basemap
+const map = L.map('map').setView([12, -20], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  subdomains: 'abcd', maxZoom: 20
 }).addTo(map);
 
-// Layer group for tracks
-const trackLayer = L.layerGroup().addTo(map);
-
-// Color scale based on strength (in 1e-5 s⁻¹ units)
-function getColor(strength) {
-  return strength > 8 ? '#d7191c' :
-         strength > 6 ? '#fdae61' :
-         strength > 4 ? '#ffffbf' :
-         strength > 3 ? '#abd9e9' :
-                        '#2c7bb6';
+// Saffir-Simpson style colors
+function getColor(strength_x1e5) {
+  if (strength_x1e5 <= 1.5) return '#1c54ff';
+  if (strength_x1e5 <= 3.0) return '#6cc343';
+  if (strength_x1e5 <= 4.2) return '#ffc309';
+  if (strength_x1e5 <= 5.0) return '#ff7209';
+  if (strength_x1e5 <= 5.8) return '#e83b0c';
+  if (strength_x1e5 <= 6.5) return '#e80cae';
+  return '#bd00ff';
 }
 
-// Load and display the JSON
+const trackLayer = L.layerGroup().addTo(map);
 let allFeatures = [];
+let currentHighlighted = null;
 
 fetch('aew_tracks_1995_interactive.json')
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
     allFeatures = data.features;
-    updateMap(); // initial load
+    applyFilters();
   })
-  .catch(err => {
-    alert("Could not load aew_tracks_1995_interactive.json – is it in the same folder?");
-    console.error(err);
-  });
+  .catch(err => { alert("JSON load failed"); console.error(err); });
 
-function trackPassesFilter(feature, selectedMonth) {
-  if (selectedMonth === 'all') return true;
-  const months = feature.properties.months;
-  return months.includes(parseInt(selectedMonth));
+function trackPassesFilter(f, month) {
+  return month === 'all' || f.properties.months.includes(parseInt(month));
 }
 
 function updateMap() {
   trackLayer.clearLayers();
-  const selectedMonth = document.getElementById('monthFilter').value;
+  currentHighlighted = null;
 
-  const visibleTracks = allFeatures.filter(f => trackPassesFilter(f, selectedMonth));
+  const month = document.getElementById('monthFilter').value;
+  const pointsOnly = document.getElementById('showPointsOnly').checked;
+  const visible = allFeatures.filter(f => trackPassesFilter(f, month));
 
-  visibleTracks.forEach(feature => {
+  visible.forEach(feature => {
     const coords = feature.geometry.coordinates;
-    const pointData = feature.properties.point_data;
+    const points = feature.properties.point_data;
+    const layers = [];
 
-    // Create polyline with per-segment coloring
-    const segments = [];
-    for (let i = 0; i < coords.length - 1; i++) {
-      const startStrength = pointData[i].strength * 1e5; // convert to ×10⁻⁵
-      const color = getColor(startStrength);
-
-      const segment = L.polyline(
-        [ [coords[i][1], coords[i][0]], [coords[i+1][1], coords[i+1][0]] ],
-        {
-          color: color,
-          weight: 3,
-          opacity: 0.8
-        }
-      );
-
-      // Tooltip with time and strength
-      const timeStr = pointData[i].time.split(' ')[0];
-      const tooltipText = `
-        <strong>AEW Track Segment</strong><br>
-        Date: ${timeStr}<br>
-        Strength: ${(startStrength).toFixed(2)} ×10⁻⁵ s⁻¹
-      `;
-      segment.bindTooltip(tooltipText, { sticky: true });
-
-      segments.push(segment);
+    if (pointsOnly) {
+      points.forEach((pt, i) => {
+        const s = pt.strength * 1e5;
+        const circle = L.circleMarker([coords[i][1], coords[i][0]], {
+          radius: 7,
+          color: 'transparent',
+          weight: 0,
+          fillColor: getColor(s),
+          fillOpacity: 0.98
+        }).bindTooltip(
+          `<strong>AEW Position</strong><br>Date: ${pt.time.split(' ')[0]}<br>700hPa Curvature Vorticity: <strong>${s.toFixed(2)}</strong> ×10⁻⁵ s⁻¹`,
+          { sticky: true }
+        );
+        layers.push(circle);
+      });
+    } else {
+      for (let i = 0; i < coords.length - 1; i++) {
+        const s = points[i].strength * 1e5;
+        const line = L.polyline(
+          [[coords[i][1], coords[i][0]], [coords[i+1][1], coords[i+1][0]]],
+          { color: getColor(s), weight: 4, opacity: 0.92 }
+        ).bindTooltip(
+          `<strong>AEW Segment</strong><br>Date: ${points[i].time.split(' ')[0]}<br>700hPa Curvature Vorticity: <strong>${s.toFixed(2)}</strong> ×10⁻⁵ s⁻¹`,
+          { sticky: true }
+        );
+        layers.push(line);
+      }
     }
 
-    // Add all segments as a FeatureGroup so they act as one track
-    const trackGroup = L.featureGroup(segments).addTo(trackLayer);
+    const group = L.featureGroup(layers).addTo(trackLayer);
 
-    // Optional: click to highlight whole track
-    trackGroup.on('click', () => {
-      trackLayer.eachLayer(layer => layer.setStyle({ weight: 3 }));
-      segments.forEach(s => s.setStyle({ weight: 6, opacity: 1 }));
+    group.on('click', () => {
+      if (currentHighlighted === group) return;
+
+      if (currentHighlighted) {
+        currentHighlighted.eachLayer(l => l.setStyle?.({ opacity: 0.92, fillOpacity: 0.98, weight: pointsOnly ? 0 : 4 }));
+      }
+
+      trackLayer.eachLayer(g => {
+        if (g !== group) {
+          g.eachLayer(l => l.setStyle?.({ opacity: 0.5, fillOpacity: 0.5, weight: pointsOnly ? 0 : 2 }));
+        }
+      });
+
+      group.eachLayer(l => l.setStyle?.({
+        weight: pointsOnly ? 0 : 8,
+        opacity: 1, fillOpacity: 1,
+        radius: pointsOnly ? 10 : undefined
+      }));
+
+      currentHighlighted = group;
     });
   });
 
-  document.getElementById('trackCount').textContent = visibleTracks.length;
+  document.getElementById('trackCount').textContent = visible.length;
+  if (visible.length > 0) map.fitBounds(trackLayer.getBounds().pad(0.3));
 }
 
-function applyFilters() {
-  updateMap();
-}
+map.on('dblclick', () => {
+  if (currentHighlighted) {
+    const pointsOnly = document.getElementById('showPointsOnly').checked;
+    trackLayer.eachLayer(g => {
+      g.eachLayer(l => l.setStyle?.({
+        opacity: pointsOnly ? 0.98 : 0.92,
+        fillOpacity: 0.98,
+        weight: pointsOnly ? 0 : 4,
+        radius: pointsOnly ? 7 : undefined
+      }));
+    });
+    currentHighlighted = null;
+  }
+});
 
+function applyFilters() { updateMap(); }
 function clearFilters() {
   document.getElementById('monthFilter').value = 'all';
+  document.getElementById('showPointsOnly').checked = false;
   updateMap();
 }
-
-// Fit bounds to Africa / Atlantic once data loads
-setTimeout(() => {
-  if (trackLayer.getLayers().length > 0) {
-    map.fitBounds(trackLayer.getBounds().pad(0.2));
-  }
-}, 2000);
-
 </script>
 
 </body>
