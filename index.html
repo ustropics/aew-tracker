@@ -1,135 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>AEW Tracks 1995 – Interactive Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <meta charset="utf-8" />
+  <title>AEW Tracks 1995 - Interactive Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <style>
-    body{margin:0;padding:0;font-family:Arial,sans-serif;}
-    #map{width:100vw;height:100vh;}
-    .control{background:white;padding:12px;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.3);font-size:15px;}
-    select{width:100%;padding:8px;font-size:15px;border-radius:4px;}
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    #map { width: 100vw; height: 100vh; }
+    .control-panel {
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 14px;
+    }
+    .control-panel label { margin-right: 10px; }
+    select, button { padding: 6px 10px; margin-right: 8px; border-radius: 4px; border: 1px solid #ccc; }
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 50px;
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+      line-height: 20px;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
+
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<div class="control-panel">
+  <label>Filter by Month:</label>
+  <select id="monthFilter">
+    <option value="all">All Months</option>
+    <option value="1">January</option>
+    <option value="2">February</option>
+    <option value="3">March</option>
+    <option value="4">April</option>
+    <option value="5">May</option>
+    <option value="6">June</option>
+    <option value="7">July</option>
+    <option value="8">August</option>
+    <option value="9">September</option>
+    <option value="10">October</option>
+    <option value="11">November</option>
+    <option value="12">December</option>
+  </select>
+  <button onclick="applyFilters()">Apply Filter</button>
+  <button onclick="clearFilters()">Clear</button>
+  <div style="margin-top:8px; font-size:12px; color:#666;">
+    Total tracks: <span id="trackCount">0</span>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Strength (curvature vorticity)</strong><br>
+  <i style="background:#d7191c"></i> Very Strong (> 8×10⁻⁵)<br>
+  <i style="background:#fdae61"></i> Strong<br>
+  <i style="background:#ffffbf"></i> Moderate<br>
+  <i style="background:#abd9e9"></i> Weak<br>
+  <i style="background:#2c7bb6"></i> Very Weak (< 3×10⁻⁵)
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <script>
-// ------------------------------------------------------------
-// Smart JSON loader: works with http server AND file:// (double-click)
-// ------------------------------------------------------------
-let geojsonData = null;
+// Initialize map
+const map = L.map('map').setView([15, -20], 4);
 
-function loadJSON() {
-  // 1. Try normal fetch first (works when served via python server)
-  fetch('aew_tracks_1995_interactive.json?' + Date.now())  // cache buster
-    .then(r => {
-      if (r.ok) return r.json();
-      throw new Error('fetch failed');
-    })
-    .then(data => {
-      geojsonData = data;
-      initMap();
-    })
-    .catch(() => {
-      // 2. Fallback: read from embedded <script id="aewdata"> for offline/double-click use
-      const el = document.getElementById('aewdata');
-      if (el && el.textContent.trim()) {
-        try {
-          geojsonData = JSON.parse(el.textContent);
-          console.log("Loaded JSON from embedded script (offline mode)");
-          initMap();
-        } catch (e) {
-          alert("Embedded JSON is invalid. Paste the full content of aew_tracks_1995_interactive.json into the <script id=\"aewdata\"> tag.");
+// OpenStreetMap tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 18
+}).addTo(map);
+
+// Layer group for tracks
+const trackLayer = L.layerGroup().addTo(map);
+
+// Color scale based on strength (in 1e-5 s⁻¹ units)
+function getColor(strength) {
+  return strength > 8 ? '#d7191c' :
+         strength > 6 ? '#fdae61' :
+         strength > 4 ? '#ffffbf' :
+         strength > 3 ? '#abd9e9' :
+                        '#2c7bb6';
+}
+
+// Load and display the JSON
+let allFeatures = [];
+
+fetch('aew_tracks_1995_interactive.json')
+  .then(response => response.json())
+  .then(data => {
+    allFeatures = data.features;
+    updateMap(); // initial load
+  })
+  .catch(err => {
+    alert("Could not load aew_tracks_1995_interactive.json – is it in the same folder?");
+    console.error(err);
+  });
+
+function trackPassesFilter(feature, selectedMonth) {
+  if (selectedMonth === 'all') return true;
+  const months = feature.properties.months;
+  return months.includes(parseInt(selectedMonth));
+}
+
+function updateMap() {
+  trackLayer.clearLayers();
+  const selectedMonth = document.getElementById('monthFilter').value;
+
+  const visibleTracks = allFeatures.filter(f => trackPassesFilter(f, selectedMonth));
+
+  visibleTracks.forEach(feature => {
+    const coords = feature.geometry.coordinates;
+    const pointData = feature.properties.point_data;
+
+    // Create polyline with per-segment coloring
+    const segments = [];
+    for (let i = 0; i < coords.length - 1; i++) {
+      const startStrength = pointData[i].strength * 1e5; // convert to ×10⁻⁵
+      const color = getColor(startStrength);
+
+      const segment = L.polyline(
+        [ [coords[i][1], coords[i][0]], [coords[i+1][1], coords[i+1][0]] ],
+        {
+          color: color,
+          weight: 3,
+          opacity: 0.8
         }
-      } else {
-        alert("Could not load aew_tracks_1995_interactive.json\n\n• Using python -m http.server? Make sure the file is in the same folder\n• Double-clicking the HTML? Paste the JSON into the <script id=\"aewdata\"> tag below");
-      }
+      );
+
+      // Tooltip with time and strength
+      const timeStr = pointData[i].time.split(' ')[0];
+      const tooltipText = `
+        <strong>AEW Track Segment</strong><br>
+        Date: ${timeStr}<br>
+        Strength: ${(startStrength).toFixed(2)} ×10⁻⁵ s⁻¹
+      `;
+      segment.bindTooltip(tooltipText, { sticky: true });
+
+      segments.push(segment);
+    }
+
+    // Add all segments as a FeatureGroup so they act as one track
+    const trackGroup = L.featureGroup(segments).addTo(trackLayer);
+
+    // Optional: click to highlight whole track
+    trackGroup.on('click', () => {
+      trackLayer.eachLayer(layer => layer.setStyle({ weight: 3 }));
+      segments.forEach(s => s.setStyle({ weight: 6, opacity: 1 }));
     });
+  });
+
+  document.getElementById('trackCount').textContent = visibleTracks.length;
 }
 
-// ------------------------------------------------------------
-// Plasma_r color scale
-// ------------------------------------------------------------
-function strengthToColor(v) {
-  const min = 0.2, max = 1.6;
-  const t = Math.max(0, Math.min(1, (v - min)/(max - min)));
-  const colors = ["#0d0887","#350498","#5b0ba6","#800fb2","#a42ab9","#c43ec0","#db5cbb","#ed82b8","#fca7b8","#fed6bc","#f9f9b6","#f0f9a9"];
-  return colors[Math.floor(t * (colors.length-1))];
+function applyFilters() {
+  updateMap();
 }
 
-// ------------------------------------------------------------
-// Draw one track with per-segment coloring
-// ------------------------------------------------------------
-function drawGraduatedTrack(feature, layerGroup) {
-  const coords = feature.geometry.coordinates;
-  const points = feature.properties.point_data;
+function clearFilters() {
+  document.getElementById('monthFilter').value = 'all';
+  updateMap();
+}
 
-  for (let i = 0; i < coords.length - 1; i++) {
-    const segment = L.polyline(
-      [[coords[i][1], coords[i][0]], [coords[i+1][1], coords[i+1][0]]],
-      { color: strengthToColor(points[i].strength), weight: 4.8, opacity: 0.94 }
-    )
-    .addTo(layerGroup)
-    .bindPopup(`
-      <b>AEW System ${feature.properties.system_id}</b><br>
-      Mean strength: ${feature.properties.strength_mean.toFixed(3)}<br>
-      Range: ${feature.properties.strength_min.toFixed(3)} – ${feature.properties.strength_max.toFixed(3)}<br>
-      Points: ${feature.properties.track_length_points}<br>
-      Months: ${feature.properties.months.sort((a,b)=>a-b).join(', ')}
-    `);
+// Fit bounds to Africa / Atlantic once data loads
+setTimeout(() => {
+  if (trackLayer.getLayers().length > 0) {
+    map.fitBounds(trackLayer.getBounds().pad(0.2));
   }
-}
+}, 2000);
 
-// ------------------------------------------------------------
-// Map setup
-// ------------------------------------------------------------
-let trackGroup;
-function initMap() {
-  const map = L.map('map').setView([15, -20], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-
-  trackGroup = L.layerGroup().addTo(map);
-
-  function render(month = 'all') {
-    trackGroup.clearLayers();
-    geojsonData.features.forEach(f => {
-      if (month !== 'all' && !f.properties.months.includes(Number(month))) return;
-      drawGraduatedTrack(f, trackGroup);
-    });
-    if (trackGroup.getLayers().length) map.fitBounds(trackGroup.getBounds().pad(0.2));
-  }
-
-  // Month filter
-  const monthName = {6:"June",7:"July",8:"August",9:"September",10:"October"};
-  let html = '<div style="margin-bottom:8px"><strong>Filter by month</strong></div><select id="monthfilter">';
-  html += '<option value="all">All months (Jun–Oct)</option>';
-  [6,7,8,9,10].forEach(m => html += `<option value="${m}">${monthName[m]} 1995</option>`);
-  html += '</select>';
-
-  L.control({position:'topright'}).onAdd = function() {
-    const div = L.DomUtil.create('div', 'control');
-    div.innerHTML = html;
-    L.DomEvent.disableClickPropagation(div);
-    div.querySelector('#monthfilter').addEventListener('change', e => render(e.target.value));
-    return div;
-  }.addTo(map);
-
-  render();
-}
-
-// ------------------------------------------------------------
-// Start loading
-// ------------------------------------------------------------
-loadJSON();
-</script>
-
-<!-- Optional: paste your JSON here only if you want pure offline double-click mode -->
-<script type="application/json" id="aewdata">
 </script>
 
 </body>
