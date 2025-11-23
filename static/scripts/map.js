@@ -1,10 +1,13 @@
 // static/scripts/map.js
 const AEWMap = (function () {
-  const map = L.map('map').setView([12, -20], 4);
+  const map = L.map('map', {
+    minZoom: 3,
+    maxZoom: 10
+  }).setView([12, -20], 4);
+  
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap contributors © CARTO',
-    subdomains: 'abcd',
-    maxZoom: 20
+    subdomains: 'abcd'
   }).addTo(map);
 
   const trackLayer = L.layerGroup().addTo(map);
@@ -48,7 +51,6 @@ const AEWMap = (function () {
       const layers = [];
 
       if (pointsOnly) {
-        // ——— POINTS ONLY MODE ———
         points.forEach((pt, i) => {
           const s = pt.strength * 1e5;
           const color = getColor(s);
@@ -61,22 +63,20 @@ const AEWMap = (function () {
             weight: 0
           });
 
-          circle.on('click', () => onPointClick(pt.time.split(' ')[0], s.toFixed(2)));
+          // CHANGED: pass full feature.properties
+          circle.on('click', () => onPointClick(pt.time.split(' ')[0], s.toFixed(2), feature.properties));
 
           const tooltipContent = `<strong>Date:</strong> ${pt.time.split(' ')[0]}<br><strong>Vorticity:</strong> ${s.toFixed(2)} ×10⁻⁵ s⁻¹`;
-
           circle.bindTooltip(tooltipContent, {
             sticky: true,
             className: 'aew-vorticity-tooltip',
-            animation: false   // ← Instant appearance, no zoom/fly-in
+            animation: false
           });
 
           circle.on('tooltipopen', e => applyTooltipStyle(e.tooltip, color));
-
           layers.push(circle);
         });
       } else {
-        // ——— LINES MODE ———
         for (let i = 0; i < coords.length - 1; i++) {
           const s = points[i].strength * 1e5;
           const color = getColor(s);
@@ -86,30 +86,27 @@ const AEWMap = (function () {
             { color: color, weight: 4, opacity: 0.92 }
           );
 
-          line.on('click', () => onPointClick(points[i].time.split(' ')[0], s.toFixed(2)));
+          // CHANGED: pass full feature.properties
+          line.on('click', () => onPointClick(points[i].time.split(' ')[0], s.toFixed(2), feature.properties));
 
           const tooltipContent = `<strong>Date:</strong> ${points[i].time.split(' ')[0]}<br><strong>Vorticity:</strong> ${s.toFixed(2)} ×10⁻⁵ s⁻¹`;
-
           line.bindTooltip(tooltipContent, {
             sticky: true,
             className: 'aew-vorticity-tooltip',
-            animation: false   // ← Instant appearance, no zoom/fly-in
+            animation: false
           });
 
           line.on('tooltipopen', e => applyTooltipStyle(e.tooltip, color));
-
           layers.push(line);
         }
       }
 
       const group = L.featureGroup(layers).addTo(trackLayer);
 
-      // Track highlighting on click
       group.on('click', e => {
         L.DomEvent.stopPropagation(e);
         if (currentHighlighted === group) return;
 
-        // Reset previous highlight
         if (currentHighlighted) {
           currentHighlighted.eachLayer(l => l.setStyle?.({
             opacity: pointsOnly ? 0.98 : 0.92,
@@ -119,7 +116,6 @@ const AEWMap = (function () {
           }));
         }
 
-        // Dim all other tracks
         trackLayer.eachLayer(g => {
           if (g !== group) {
             g.eachLayer(l => l.setStyle?.({
@@ -130,7 +126,6 @@ const AEWMap = (function () {
           }
         });
 
-        // Highlight selected track
         group.eachLayer(l => l.setStyle?.({
           weight: pointsOnly ? 0 : 10,
           opacity: 1,
@@ -142,7 +137,6 @@ const AEWMap = (function () {
       });
     });
 
-    // Auto-zoom to fit all visible tracks
     if (trackLayer.getLayers().length > 0) {
       try { map.fitBounds(trackLayer.getBounds().pad(0.3)); }
       catch(e) { console.warn("fitBounds skipped"); }

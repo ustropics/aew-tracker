@@ -123,11 +123,22 @@ button:hover {
   font-size: 13.5px !important;
   font-weight: 600 !important;
   box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  transition: opacity 2s ease;
   backdrop-filter: blur(10px);
-  transition: all 0.2s ease;
+  transition: all 0.05s ease;
 }
 
 .leaflet-tooltip.aew-vorticity-tooltip::before {
   border-top-color: transparent !important;
   border-bottom-color: transparent !important;
+}
+
+.leaflet-tooltip {
+  animation: none !important;
+  transition: opacity 2s ease;
+  opacity: 1 !important;
+}
+.leaflet-tooltip-pane * {
+  animation: none !important;
+  transition: none !important;
 }
